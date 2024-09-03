@@ -5,11 +5,11 @@ import {
 	CloseCircleTwoTone,
 	LoadingOutlined,
 } from '@ant-design/icons';
+import logEvent from 'api/common/logEvent';
 import { DEFAULT_ENTITY_VERSION } from 'constants/app';
 import { PANEL_TYPES } from 'constants/queryBuilder';
 import Header from 'container/OnboardingContainer/common/Header/Header';
 import { useOnboardingContext } from 'container/OnboardingContainer/context/OnboardingContext';
-import useAnalytics from 'hooks/analytics/useAnalytics';
 import { useGetExplorerQueryRange } from 'hooks/queryBuilder/useGetExplorerQueryRange';
 import { useEffect, useState } from 'react';
 import { SuccessResponse } from 'types/api';
@@ -32,7 +32,6 @@ export default function LogsConnectionStatus(): JSX.Element {
 		activeStep,
 		selectedEnvironment,
 	} = useOnboardingContext();
-	const { trackEvent } = useAnalytics();
 	const [isReceivingData, setIsReceivingData] = useState(false);
 	const [pollingInterval, setPollingInterval] = useState<number | false>(15000); // initial Polling interval of 15 secs , Set to false after 5 mins
 	const [retryCount, setRetryCount] = useState(20); // Retry for 5 mins
@@ -105,7 +104,7 @@ export default function LogsConnectionStatus(): JSX.Element {
 			setRetryCount(retryCount - 1);
 
 			if (retryCount < 0) {
-				trackEvent('Onboarding V2: Connection Status', {
+				logEvent('Onboarding V2: Connection Status', {
 					dataSource: selectedDataSource?.id,
 					environment: selectedEnvironment,
 					module: activeStep?.module?.id,
@@ -117,7 +116,7 @@ export default function LogsConnectionStatus(): JSX.Element {
 			}
 		}
 
-		const currentData = data?.payload.data.newResult.data.result || [];
+		const currentData = data?.payload?.data?.newResult?.data?.result || [];
 		if (currentData.length > 0 && currentData[0].list) {
 			const currentLogs: ILog[] = currentData[0].list.map((item) => ({
 				...item.data,
@@ -141,7 +140,7 @@ export default function LogsConnectionStatus(): JSX.Element {
 					setRetryCount(-1);
 					setPollingInterval(false);
 
-					trackEvent('Onboarding V2: Connection Status', {
+					logEvent('Onboarding V2: Connection Status', {
 						dataSource: selectedDataSource?.id,
 						environment: selectedEnvironment,
 						module: activeStep?.module?.id,

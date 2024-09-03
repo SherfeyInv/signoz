@@ -3,6 +3,13 @@ import { Layout } from 'react-grid-layout';
 import { UseQueryResult } from 'react-query';
 import { Dashboard } from 'types/api/dashboard/getAll';
 
+export interface DashboardSortOrder {
+	columnKey: string;
+	order: string;
+	pagination: string;
+	search: string;
+}
+
 export interface IDashboardContext {
 	isDashboardSliderOpen: boolean;
 	isDashboardLocked: boolean;
@@ -12,6 +19,10 @@ export interface IDashboardContext {
 	selectedDashboard: Dashboard | undefined;
 	dashboardId: string;
 	layouts: Layout[];
+	panelMap: Record<string, { widgets: Layout[]; collapsed: boolean }>;
+	setPanelMap: React.Dispatch<React.SetStateAction<Record<string, any>>>;
+	listSortOrder: DashboardSortOrder;
+	setListSortOrder: (sortOrder: DashboardSortOrder) => void;
 	setLayouts: React.Dispatch<React.SetStateAction<Layout[]>>;
 	setSelectedDashboard: React.Dispatch<
 		React.SetStateAction<Dashboard | undefined>

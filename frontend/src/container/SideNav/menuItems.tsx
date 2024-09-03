@@ -10,6 +10,7 @@ import {
 	FileKey2,
 	Layers2,
 	LayoutGrid,
+	ListMinus,
 	MessageSquare,
 	Receipt,
 	Route,
@@ -72,7 +73,7 @@ const menuItems: SidebarItem[] = [
 		icon: <BarChart2 size={16} />,
 	},
 	{
-		key: ROUTES.TRACE,
+		key: ROUTES.TRACES_EXPLORER,
 		label: 'Traces',
 		icon: <DraftingCompass size={16} />,
 	},
@@ -85,6 +86,12 @@ const menuItems: SidebarItem[] = [
 		key: ROUTES.ALL_DASHBOARD,
 		label: 'Dashboards',
 		icon: <LayoutGrid size={16} />,
+	},
+	{
+		key: ROUTES.MESSAGING_QUEUES,
+		label: 'Messaging Queues',
+		icon: <ListMinus size={16} />,
+		isBeta: true,
 	},
 	{
 		key: ROUTES.LIST_ALL_ALERT,
@@ -105,6 +112,7 @@ const menuItems: SidebarItem[] = [
 		key: ROUTES.SERVICE_MAP,
 		label: 'Service Map',
 		icon: <Route size={16} />,
+		isBeta: true,
 	},
 	{
 		key: ROUTES.USAGE_EXPLORER,
@@ -125,8 +133,8 @@ const menuItems: SidebarItem[] = [
 
 /** Mapping of some newly added routes and their corresponding active sidebar menu key */
 export const NEW_ROUTES_MENU_ITEM_KEY_MAP: Record<string, string> = {
-	[ROUTES.TRACES_EXPLORER]: ROUTES.TRACE,
-	[ROUTES.TRACE_EXPLORER]: ROUTES.TRACE,
+	[ROUTES.TRACE]: ROUTES.TRACES_EXPLORER,
+	[ROUTES.TRACE_EXPLORER]: ROUTES.TRACES_EXPLORER,
 	[ROUTES.LOGS_BASE]: ROUTES.LOGS_EXPLORER,
 };
 

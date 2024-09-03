@@ -23,6 +23,7 @@ export const useOptions = (
 	isExist: boolean,
 	results: string[],
 	result: string[],
+	isFetching: boolean,
 	whereClauseConfig?: WhereClauseConfig,
 ): Option[] => {
 	const [options, setOptions] = useState<Option[]>([]);
@@ -44,6 +45,7 @@ export const useOptions = (
 				label: `${getLabel(item)}`,
 				value: item.key,
 				dataType: item.dataType,
+				isIndexed: item?.isIndexed,
 			})),
 		[getLabel],
 	);
@@ -138,6 +140,9 @@ export const useOptions = (
 		if (newOptions.length > 0) {
 			setOptions(newOptions);
 		}
+		if (isFetching) {
+			setOptions([]);
+		}
 	}, [
 		whereClauseConfig,
 		getKeyOpValue,
@@ -154,6 +159,7 @@ export const useOptions = (
 		searchValue,
 		getKeyOperatorOptions,
 		getOptionsWithValidOperator,
+		isFetching,
 	]);
 
 	return useMemo(

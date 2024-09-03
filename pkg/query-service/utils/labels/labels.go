@@ -14,8 +14,9 @@ const sep = '\xff'
 
 // Well-known label names used by Prometheus components.
 const (
-	MetricNameLabel = "__name__"
-	AlertNameLabel  = "alertname"
+	MetricNameLabel  = "__name__"
+	TemporalityLabel = "__temporality__"
+	AlertNameLabel   = "alertname"
 
 	// AlertStateLabel is the label name indicating the state of an alert.
 	AlertStateLabel = "alertstate"
@@ -26,8 +27,6 @@ const (
 	RuleThresholdLabel    = "threshold"
 	AlertSummaryLabel     = "summary"
 	AlertDescriptionLabel = "description"
-
-	AlertMissingData = "Missing data"
 )
 
 // Label is a key/value pair of strings.

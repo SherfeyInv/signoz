@@ -7,7 +7,14 @@ export const ServicesTablePage = Loadable(
 export const ServiceMetricsPage = Loadable(
 	() =>
 		import(
-			/* webpackChunkName: "ServiceMetricsPage" */ 'pages/MetricsApplication'
+			/* webpackChunkName: "ServiceMetricsPage" */ 'pages/MetricsApplication/MetricsApplication'
+		),
+);
+
+export const ServiceTopLevelOperationsPage = Loadable(
+	() =>
+		import(
+			/* webpackChunkName: "ServiceMetricsPage" */ 'pages/ServiceTopLevelOperations'
 		),
 );
 
@@ -195,5 +202,17 @@ export const InstalledIntegrations = Loadable(
 	() =>
 		import(
 			/* webpackChunkName: "InstalledIntegrations" */ 'pages/IntegrationsModulePage'
+		),
+);
+
+export const MessagingQueues = Loadable(
+	() =>
+		import(/* webpackChunkName: "MessagingQueues" */ 'pages/MessagingQueues'),
+);
+
+export const MQDetailPage = Loadable(
+	() =>
+		import(
+			/* webpackChunkName: "MQDetailPage" */ 'pages/MessagingQueues/MQDetailPage'
 		),
 );

@@ -3,10 +3,7 @@ package tests
 import (
 	"encoding/json"
 	"fmt"
-	"io"
 	"net/http"
-	"net/http/httptest"
-	"runtime/debug"
 	"slices"
 	"testing"
 	"time"
@@ -327,6 +324,7 @@ func TestDashboardsForInstalledIntegrationDashboards(t *testing.T) {
 
 	// Installing an integration should make its dashboards appear in the dashboard list
 	require.False(testAvailableIntegration.IsInstalled)
+	tsBeforeInstallation := time.Now().Unix()
 	integrationsTB.RequestQSToInstallIntegration(
 		testAvailableIntegration.Id, map[string]interface{}{},
 	)
@@ -344,9 +342,13 @@ func TestDashboardsForInstalledIntegrationDashboards(t *testing.T) {
 		len(testIntegrationDashboards), len(dashboards),
 		"dashboards for installed integrations should appear in dashboards list",
 	)
+	require.GreaterOrEqual(dashboards[0].CreatedAt.Unix(), tsBeforeInstallation)
+	require.GreaterOrEqual(dashboards[0].UpdatedAt.Unix(), tsBeforeInstallation)
 
 	// Should be able to get installed integrations dashboard by id
 	dd := integrationsTB.GetDashboardByIdFromQS(dashboards[0].Uuid)
+	require.GreaterOrEqual(dd.CreatedAt.Unix(), tsBeforeInstallation)
+	require.GreaterOrEqual(dd.UpdatedAt.Unix(), tsBeforeInstallation)
 	require.Equal(*dd, dashboards[0])
 
 	// Integration dashboards should not longer appear in dashboard list after uninstallation
@@ -496,38 +498,18 @@ func (tb *IntegrationsTestBed) RequestQS(
 	path string,
 	postData interface{},
 ) *app.ApiResponse {
-	req, err := NewAuthenticatedTestRequest(
+	req, err := AuthenticatedRequestForTest(
 		tb.testUser, path, postData,
 	)
 	if err != nil {
 		tb.t.Fatalf("couldn't create authenticated test request: %v", err)
 	}
 
-	respWriter := httptest.NewRecorder()
-	tb.qsHttpHandler.ServeHTTP(respWriter, req)
-	response := respWriter.Result()
-	responseBody, err := io.ReadAll(response.Body)
+	result, err := HandleTestRequest(tb.qsHttpHandler, req, 200)
 	if err != nil {
-		tb.t.Fatalf("couldn't read response body received from QS: %v", err)
+		tb.t.Fatalf("test request failed: %v", err)
 	}
-
-	if response.StatusCode != 200 {
-		tb.t.Fatalf(
-			"unexpected response status from query service for path %s. status: %d, body: %v\n%v",
-			path, response.StatusCode, string(responseBody), string(debug.Stack()),
-		)
-	}
-
-	var result app.ApiResponse
-	err = json.Unmarshal(responseBody, &result)
-	if err != nil {
-		tb.t.Fatalf(
-			"Could not unmarshal QS response into an ApiResponse.\nResponse body: %s",
-			string(responseBody),
-		)
-	}
-
-	return &result
+	return result
 }
 
 func (tb *IntegrationsTestBed) mockLogQueryResponse(logsInResponse []model.SignozLog) {

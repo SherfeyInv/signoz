@@ -14,6 +14,8 @@ function PanelWrapper({
 	onClickHandler,
 	onDragSelect,
 	selectedGraph,
+	tableProcessedDataRef,
+	customTooltipElement,
 }: PanelWrapperProps): JSX.Element {
 	const Component = PanelTypeVsPanelWrapper[
 		selectedGraph || widget.panelTypes
@@ -35,6 +37,8 @@ function PanelWrapper({
 			onClickHandler={onClickHandler}
 			onDragSelect={onDragSelect}
 			selectedGraph={selectedGraph}
+			tableProcessedDataRef={tableProcessedDataRef}
+			customTooltipElement={customTooltipElement}
 		/>
 	);
 }

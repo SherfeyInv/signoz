@@ -212,8 +212,11 @@ type ServiceOverviewItem struct {
 }
 
 type SearchSpansResult struct {
-	Columns []string        `json:"columns"`
-	Events  [][]interface{} `json:"events"`
+	StartTimestampMillis uint64          `json:"startTimestampMillis"`
+	EndTimestampMillis   uint64          `json:"endTimestampMillis"`
+	Columns              []string        `json:"columns"`
+	Events               [][]interface{} `json:"events"`
+	IsSubTree            bool            `json:"isSubTree"`
 }
 
 type GetFilterSpansResponseItem struct {
@@ -249,19 +252,22 @@ type Event struct {
 
 //easyjson:json
 type SearchSpanResponseItem struct {
-	TimeUnixNano uint64            `json:"timestamp"`
-	DurationNano int64             `json:"durationNano"`
-	SpanID       string            `json:"spanId"`
-	RootSpanID   string            `json:"rootSpanId"`
-	TraceID      string            `json:"traceId"`
-	HasError     bool              `json:"hasError"`
-	Kind         int32             `json:"kind"`
-	ServiceName  string            `json:"serviceName"`
-	Name         string            `json:"name"`
-	References   []OtelSpanRef     `json:"references,omitempty"`
-	TagMap       map[string]string `json:"tagMap"`
-	Events       []string          `json:"event"`
-	RootName     string            `json:"rootName"`
+	TimeUnixNano     uint64            `json:"timestamp"`
+	DurationNano     int64             `json:"durationNano"`
+	SpanID           string            `json:"spanId"`
+	RootSpanID       string            `json:"rootSpanId"`
+	TraceID          string            `json:"traceId"`
+	HasError         bool              `json:"hasError"`
+	Kind             int32             `json:"kind"`
+	ServiceName      string            `json:"serviceName"`
+	Name             string            `json:"name"`
+	References       []OtelSpanRef     `json:"references,omitempty"`
+	TagMap           map[string]string `json:"tagMap"`
+	Events           []string          `json:"event"`
+	RootName         string            `json:"rootName"`
+	StatusMessage    string            `json:"statusMessage"`
+	StatusCodeString string            `json:"statusCodeString"`
+	SpanKind         string            `json:"spanKind"`
 }
 
 type OtelSpanRef struct {
@@ -298,7 +304,7 @@ func (item *SearchSpanResponseItem) GetValues() []interface{} {
 		keys = append(keys, k)
 		values = append(values, v)
 	}
-	returnArray := []interface{}{item.TimeUnixNano, item.SpanID, item.TraceID, item.ServiceName, item.Name, strconv.Itoa(int(item.Kind)), strconv.FormatInt(item.DurationNano, 10), keys, values, referencesStringArray, item.Events, item.HasError}
+	returnArray := []interface{}{item.TimeUnixNano, item.SpanID, item.TraceID, item.ServiceName, item.Name, strconv.Itoa(int(item.Kind)), strconv.FormatInt(item.DurationNano, 10), keys, values, referencesStringArray, item.Events, item.HasError, item.StatusMessage, item.StatusCodeString, item.SpanKind}
 
 	return returnArray
 }
@@ -394,11 +400,6 @@ type DBResponseServiceName struct {
 	Count       uint64 `ch:"count"`
 }
 
-type DBResponseHttpCode struct {
-	HttpCode string `ch:"httpCode"`
-	Count    uint64 `ch:"count"`
-}
-
 type DBResponseHttpRoute struct {
 	HttpRoute string `ch:"httpRoute"`
 	Count     uint64 `ch:"count"`
@@ -453,14 +454,12 @@ type SpanFiltersResponse struct {
 	Status             map[string]uint64 `json:"status"`
 	Duration           map[string]uint64 `json:"duration"`
 	Operation          map[string]uint64 `json:"operation"`
-	HttpCode           map[string]uint64 `json:"httpCode"`
 	ResponseStatusCode map[string]uint64 `json:"responseStatusCode"`
 	RPCMethod          map[string]uint64 `json:"rpcMethod"`
 	HttpUrl            map[string]uint64 `json:"httpUrl"`
 	HttpMethod         map[string]uint64 `json:"httpMethod"`
 	HttpRoute          map[string]uint64 `json:"httpRoute"`
 	HttpHost           map[string]uint64 `json:"httpHost"`
-	Component          map[string]uint64 `json:"component"`
 }
 type Error struct {
 	ExceptionType  string    `json:"exceptionType" ch:"exceptionType"`
@@ -635,10 +634,22 @@ type TagsInfo struct {
 }
 
 type AlertsInfo struct {
-	TotalAlerts       int `json:"totalAlerts"`
-	LogsBasedAlerts   int `json:"logsBasedAlerts"`
-	MetricBasedAlerts int `json:"metricBasedAlerts"`
-	TracesBasedAlerts int `json:"tracesBasedAlerts"`
+	TotalAlerts                  int      `json:"totalAlerts"`
+	LogsBasedAlerts              int      `json:"logsBasedAlerts"`
+	MetricBasedAlerts            int      `json:"metricBasedAlerts"`
+	TracesBasedAlerts            int      `json:"tracesBasedAlerts"`
+	SlackChannels                int      `json:"slackChannels"`
+	WebHookChannels              int      `json:"webHookChannels"`
+	PagerDutyChannels            int      `json:"pagerDutyChannels"`
+	OpsGenieChannels             int      `json:"opsGenieChannels"`
+	EmailChannels                int      `json:"emailChannels"`
+	MSTeamsChannels              int      `json:"microsoftTeamsChannels"`
+	MetricsBuilderQueries        int      `json:"metricsBuilderQueries"`
+	MetricsClickHouseQueries     int      `json:"metricsClickHouseQueries"`
+	MetricsPrometheusQueries     int      `json:"metricsPrometheusQueries"`
+	SpanMetricsPrometheusQueries int      `json:"spanMetricsPrometheusQueries"`
+	AlertNames                   []string `json:"alertNames"`
+	AlertsWithTSV2               int      `json:"alertsWithTSv2"`
 }
 
 type SavedViewsInfo struct {
@@ -648,11 +659,13 @@ type SavedViewsInfo struct {
 }
 
 type DashboardsInfo struct {
-	TotalDashboards                 int `json:"totalDashboards"`
-	TotalDashboardsWithPanelAndName int `json:"totalDashboardsWithPanelAndName"` // dashboards with panel and name without sample title
-	LogsBasedPanels                 int `json:"logsBasedPanels"`
-	MetricBasedPanels               int `json:"metricBasedPanels"`
-	TracesBasedPanels               int `json:"tracesBasedPanels"`
+	TotalDashboards                 int      `json:"totalDashboards"`
+	TotalDashboardsWithPanelAndName int      `json:"totalDashboardsWithPanelAndName"` // dashboards with panel and name without sample title
+	LogsBasedPanels                 int      `json:"logsBasedPanels"`
+	MetricBasedPanels               int      `json:"metricBasedPanels"`
+	TracesBasedPanels               int      `json:"tracesBasedPanels"`
+	DashboardNames                  []string `json:"dashboardNames"`
+	QueriesWithTSV2                 int      `json:"queriesWithTSV2"`
 }
 
 type TagTelemetryData struct {

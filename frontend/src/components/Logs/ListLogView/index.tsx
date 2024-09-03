@@ -3,8 +3,11 @@ import './ListLogView.styles.scss';
 import { blue } from '@ant-design/colors';
 import Convert from 'ansi-to-html';
 import { Typography } from 'antd';
+import cx from 'classnames';
 import LogDetail from 'components/LogDetail';
 import { VIEW_TYPES } from 'components/LogDetail/constants';
+import { unescapeString } from 'container/LogDetailedView/utils';
+import { FontSize } from 'container/OptionsMenu/types';
 import dayjs from 'dayjs';
 import dompurify from 'dompurify';
 import { useActiveLog } from 'hooks/logs/useActiveLog';
@@ -16,6 +19,7 @@ import { useCallback, useMemo, useState } from 'react';
 // interfaces
 import { IField } from 'types/api/logs/fields';
 import { ILog } from 'types/api/logs/log';
+import { FORBID_DOM_PURIFY_TAGS } from 'utils/app';
 
 // components
 import AddToQueryHOC, { AddToQueryHOCProps } from '../AddToQueryHOC';
@@ -38,6 +42,7 @@ interface LogFieldProps {
 	fieldKey: string;
 	fieldValue: string;
 	linesPerRow?: number;
+	fontSize: FontSize;
 }
 
 type LogSelectedFieldProps = Omit<LogFieldProps, 'linesPerRow'> &
@@ -47,22 +52,27 @@ function LogGeneralField({
 	fieldKey,
 	fieldValue,
 	linesPerRow = 1,
+	fontSize,
 }: LogFieldProps): JSX.Element {
 	const html = useMemo(
 		() => ({
-			__html: convert.toHtml(dompurify.sanitize(fieldValue)),
+			__html: convert.toHtml(
+				dompurify.sanitize(unescapeString(fieldValue), {
+					FORBID_TAGS: [...FORBID_DOM_PURIFY_TAGS],
+				}),
+			),
 		}),
 		[fieldValue],
 	);
 
 	return (
 		<TextContainer>
-			<Text ellipsis type="secondary" className="log-field-key">
+			<Text ellipsis type="secondary" className={cx('log-field-key', fontSize)}>
 				{`${fieldKey} : `}
 			</Text>
 			<LogText
 				dangerouslySetInnerHTML={html}
-				className="log-value"
+				className={cx('log-value', fontSize)}
 				linesPerRow={linesPerRow > 1 ? linesPerRow : undefined}
 			/>
 		</TextContainer>
@@ -73,6 +83,7 @@ function LogSelectedField({
 	fieldKey = '',
 	fieldValue = '',
 	onAddToQuery,
+	fontSize,
 }: LogSelectedFieldProps): JSX.Element {
 	return (
 		<div className="log-selected-fields">
@@ -80,16 +91,22 @@ function LogSelectedField({
 				fieldKey={fieldKey}
 				fieldValue={fieldValue}
 				onAddToQuery={onAddToQuery}
+				fontSize={fontSize}
 			>
 				<Typography.Text>
-					<span style={{ color: blue[4] }} className="selected-log-field-key">
+					<span
+						style={{ color: blue[4] }}
+						className={cx('selected-log-field-key', fontSize)}
+					>
 						{fieldKey}
 					</span>
 				</Typography.Text>
 			</AddToQueryHOC>
-			<Typography.Text ellipsis className="selected-log-kv">
-				<span className="selected-log-field-key">{': '}</span>
-				<span className="selected-log-value">{fieldValue || "''"}</span>
+			<Typography.Text ellipsis className={cx('selected-log-kv', fontSize)}>
+				<span className={cx('selected-log-field-key', fontSize)}>{': '}</span>
+				<span className={cx('selected-log-value', fontSize)}>
+					{fieldValue || "''"}
+				</span>
 			</Typography.Text>
 		</div>
 	);
@@ -102,6 +119,7 @@ type ListLogViewProps = {
 	onAddToQuery: AddToQueryHOCProps['onAddToQuery'];
 	activeLog?: ILog | null;
 	linesPerRow: number;
+	fontSize: FontSize;
 };
 
 function ListLogView({
@@ -111,6 +129,7 @@ function ListLogView({
 	onAddToQuery,
 	activeLog,
 	linesPerRow,
+	fontSize,
 }: ListLogViewProps): JSX.Element {
 	const flattenLogData = useMemo(() => FlatLogData(logData), [logData]);
 
@@ -123,6 +142,7 @@ function ListLogView({
 		onAddToQuery: handleAddToQuery,
 		onSetActiveLog: handleSetActiveContextLog,
 		onClearActiveLog: handleClearActiveContextLog,
+		onGroupByAttribute,
 	} = useActiveLog();
 
 	const isDarkMode = useIsDarkMode();
@@ -157,8 +177,8 @@ function ListLogView({
 	const timestampValue = useMemo(
 		() =>
 			typeof flattenLogData.timestamp === 'string'
-				? dayjs(flattenLogData.timestamp).format()
-				: dayjs(flattenLogData.timestamp / 1e6).format(),
+				? dayjs(flattenLogData.timestamp).format('YYYY-MM-DD HH:mm:ss.SSS')
+				: dayjs(flattenLogData.timestamp / 1e6).format('YYYY-MM-DD HH:mm:ss.SSS'),
 		[flattenLogData.timestamp],
 	);
 
@@ -180,6 +200,7 @@ function ListLogView({
 				onMouseEnter={handleMouseEnter}
 				onMouseLeave={handleMouseLeave}
 				onClick={handleDetailedView}
+				fontSize={fontSize}
 			>
 				<div className="log-line">
 					<LogStateIndicator
@@ -187,18 +208,28 @@ function ListLogView({
 						isActive={
 							activeLog?.id === logData.id || activeContextLog?.id === logData.id
 						}
+						fontSize={fontSize}
 					/>
 					<div>
-						<LogContainer>
+						<LogContainer fontSize={fontSize}>
 							<LogGeneralField
 								fieldKey="Log"
 								fieldValue={flattenLogData.body}
 								linesPerRow={linesPerRow}
+								fontSize={fontSize}
 							/>
 							{flattenLogData.stream && (
-								<LogGeneralField fieldKey="Stream" fieldValue={flattenLogData.stream} />
+								<LogGeneralField
+									fieldKey="Stream"
+									fieldValue={flattenLogData.stream}
+									fontSize={fontSize}
+								/>
 							)}
-							<LogGeneralField fieldKey="Timestamp" fieldValue={timestampValue} />
+							<LogGeneralField
+								fieldKey="Timestamp"
+								fieldValue={timestampValue}
+								fontSize={fontSize}
+							/>
 
 							{updatedSelecedFields.map((field) =>
 								isValidLogField(flattenLogData[field.name] as never) ? (
@@ -207,6 +238,7 @@ function ListLogView({
 										fieldKey={field.name}
 										fieldValue={flattenLogData[field.name] as never}
 										onAddToQuery={onAddToQuery}
+										fontSize={fontSize}
 									/>
 								) : null,
 							)}
@@ -227,6 +259,7 @@ function ListLogView({
 					onAddToQuery={handleAddToQuery}
 					selectedTab={VIEW_TYPES.CONTEXT}
 					onClose={handlerClearActiveContextLog}
+					onGroupByAttribute={onGroupByAttribute}
 				/>
 			)}
 		</>

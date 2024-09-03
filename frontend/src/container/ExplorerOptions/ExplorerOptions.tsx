@@ -1,6 +1,7 @@
 /* eslint-disable react/jsx-props-no-spreading */
 import './ExplorerOptions.styles.scss';
 
+import { InfoCircleOutlined } from '@ant-design/icons';
 import { Color } from '@signozhq/design-tokens';
 import {
 	Button,
@@ -13,6 +14,7 @@ import {
 	Tooltip,
 	Typography,
 } from 'antd';
+import logEvent from 'api/common/logEvent';
 import axios from 'axios';
 import cx from 'classnames';
 import { getViewDetailsUsingViewKey } from 'components/ExplorerCard/utils';
@@ -31,6 +33,7 @@ import useErrorNotification from 'hooks/useErrorNotification';
 import { useHandleExplorerTabChange } from 'hooks/useHandleExplorerTabChange';
 import { useNotifications } from 'hooks/useNotifications';
 import { mapCompositeQueryFromQuery } from 'lib/newQueryBuilder/queryBuilderMappers/mapCompositeQueryFromQuery';
+import { cloneDeep } from 'lodash-es';
 import {
 	Check,
 	ConciergeBell,
@@ -54,7 +57,7 @@ import { useHistory } from 'react-router-dom';
 import { AppState } from 'store/reducers';
 import { Dashboard } from 'types/api/dashboard/getAll';
 import { Query } from 'types/api/queryBuilder/queryBuilderData';
-import { DataSource } from 'types/common/queryBuilder';
+import { DataSource, StringOperators } from 'types/common/queryBuilder';
 import AppReducer from 'types/reducer/app';
 import { USER_ROLES } from 'types/roles';
 
@@ -92,7 +95,23 @@ function ExplorerOptions({
 		setIsExport(value);
 	}, []);
 
+	const {
+		currentQuery,
+		panelType,
+		isStagedQueryUpdated,
+		redirectWithQueryBuilderData,
+	} = useQueryBuilder();
+
 	const handleSaveViewModalToggle = (): void => {
+		if (sourcepage === DataSource.TRACES) {
+			logEvent('Traces Explorer: Save view clicked', {
+				panelType,
+			});
+		} else if (sourcepage === DataSource.LOGS) {
+			logEvent('Logs Explorer: Save view clicked', {
+				panelType,
+			});
+		}
 		setIsSaveModalOpen(!isSaveModalOpen);
 	};
 
@@ -102,19 +121,56 @@ function ExplorerOptions({
 
 	const { role } = useSelector<AppState, AppReducer>((state) => state.app);
 
+	const handleConditionalQueryModification = useCallback((): string => {
+		if (
+			query?.builder?.queryData?.[0]?.aggregateOperator !== StringOperators.NOOP
+		) {
+			return JSON.stringify(query);
+		}
+
+		// Modify aggregateOperator to count, as noop is not supported in alerts
+		const modifiedQuery = cloneDeep(query);
+
+		modifiedQuery.builder.queryData[0].aggregateOperator = StringOperators.COUNT;
+
+		return JSON.stringify(modifiedQuery);
+	}, [query]);
+
 	const onCreateAlertsHandler = useCallback(() => {
+		if (sourcepage === DataSource.TRACES) {
+			logEvent('Traces Explorer: Create alert', {
+				panelType,
+			});
+		} else if (sourcepage === DataSource.LOGS) {
+			logEvent('Logs Explorer: Create alert', {
+				panelType,
+			});
+		}
+
+		const stringifiedQuery = handleConditionalQueryModification();
+
 		history.push(
 			`${ROUTES.ALERTS_NEW}?${QueryParams.compositeQuery}=${encodeURIComponent(
-				JSON.stringify(query),
+				stringifiedQuery,
 			)}`,
 		);
-	}, [history, query]);
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, [handleConditionalQueryModification, history]);
 
 	const onCancel = (value: boolean) => (): void => {
 		onModalToggle(value);
 	};
 
 	const onAddToDashboard = (): void => {
+		if (sourcepage === DataSource.TRACES) {
+			logEvent('Traces Explorer: Add to dashboard clicked', {
+				panelType,
+			});
+		} else if (sourcepage === DataSource.LOGS) {
+			logEvent('Logs Explorer: Add to dashboard clicked', {
+				panelType,
+			});
+		}
 		setIsExport(true);
 	};
 
@@ -125,13 +181,6 @@ function ExplorerOptions({
 		isRefetching,
 		refetch: refetchAllView,
 	} = useGetAllViews(sourcepage);
-
-	const {
-		currentQuery,
-		panelType,
-		isStagedQueryUpdated,
-		redirectWithQueryBuilderData,
-	} = useQueryBuilder();
 
 	const compositeQuery = mapCompositeQueryFromQuery(currentQuery, panelType);
 
@@ -223,6 +272,17 @@ function ExplorerOptions({
 		onMenuItemSelectHandler({
 			key: option.key,
 		});
+		if (sourcepage === DataSource.TRACES) {
+			logEvent('Traces Explorer: Select view', {
+				panelType,
+				viewName: option?.value,
+			});
+		} else if (sourcepage === DataSource.LOGS) {
+			logEvent('Logs Explorer: Select view', {
+				panelType,
+				viewName: option?.value,
+			});
+		}
 		if (ref.current) {
 			ref.current.blur();
 		}
@@ -258,6 +318,17 @@ function ExplorerOptions({
 			viewName: newViewName,
 			setNewViewName,
 		});
+		if (sourcepage === DataSource.TRACES) {
+			logEvent('Traces Explorer: Save view successful', {
+				panelType,
+				viewName: newViewName,
+			});
+		} else if (sourcepage === DataSource.LOGS) {
+			logEvent('Logs Explorer: Save view successful', {
+				panelType,
+				viewName: newViewName,
+			});
+		}
 	};
 
 	// TODO: Remove this and move this to scss file
@@ -288,7 +359,7 @@ function ExplorerOptions({
 	const isEditDeleteSupported = allowedRoles.includes(role as string);
 
 	return (
-		<>
+		<div className="explorer-options-container">
 			{isQueryUpdated && !isExplorerOptionHidden && (
 				<div
 					className={cx(
@@ -402,12 +473,35 @@ function ExplorerOptions({
 						</Button>
 					</div>
 					<div className="actions">
+						<Tooltip
+							title={
+								<div>
+									{sourcepage === DataSource.LOGS
+										? 'Learn more about Logs explorer '
+										: 'Learn more about Traces explorer '}
+									<Typography.Link
+										href={
+											sourcepage === DataSource.LOGS
+												? 'https://signoz.io/docs/product-features/logs-explorer/?utm_source=product&utm_medium=logs-explorer-toolbar'
+												: 'https://signoz.io/docs/product-features/trace-explorer/?utm_source=product&utm_medium=trace-explorer-toolbar'
+										}
+										target="_blank"
+									>
+										{' '}
+										here
+									</Typography.Link>{' '}
+								</div>
+							}
+						>
+							<InfoCircleOutlined className="info-icon" />
+						</Tooltip>
 						<Tooltip title="Hide">
 							<Button
 								disabled={disabled}
 								shape="circle"
 								onClick={hideToolbar}
 								icon={<PanelBottomClose size={16} />}
+								data-testid="hide-toolbar"
 							/>
 						</Tooltip>
 					</div>
@@ -437,6 +531,7 @@ function ExplorerOptions({
 						icon={<Check size={16} />}
 						onClick={onSaveHandler}
 						disabled={isSaveViewLoading}
+						data-testid="save-view-btn"
 					>
 						Save this view
 					</Button>,
@@ -470,13 +565,13 @@ function ExplorerOptions({
 					onExport={onExport}
 				/>
 			</Modal>
-		</>
+		</div>
 	);
 }
 
 export interface ExplorerOptionsProps {
 	isLoading?: boolean;
-	onExport: (dashboard: Dashboard | null) => void;
+	onExport: (dashboard: Dashboard | null, isNewDashboard?: boolean) => void;
 	query: Query | null;
 	disabled: boolean;
 	sourcepage: DataSource;

@@ -1,7 +1,9 @@
 import './Integrations.styles.scss';
 
 import { Color } from '@signozhq/design-tokens';
-import { Input, Typography } from 'antd';
+import { Flex, Input, Typography } from 'antd';
+import LaunchChatSupport from 'components/LaunchChatSupport/LaunchChatSupport';
+import { integrationsListMessage } from 'components/LaunchChatSupport/util';
 import { Search } from 'lucide-react';
 import { Dispatch, SetStateAction } from 'react';
 
@@ -19,9 +21,18 @@ function Header(props: HeaderProps): JSX.Element {
 	return (
 		<div className="integrations-header">
 			<Typography.Title className="title">Integrations</Typography.Title>
-			<Typography.Text className="subtitle">
-				Manage Integrations for this workspace
-			</Typography.Text>
+			<Flex justify="space-between" align="center">
+				<Typography.Text className="subtitle">
+					Manage Integrations for this workspace
+				</Typography.Text>
+				<LaunchChatSupport
+					attributes={{ screen: 'Integrations list page' }}
+					eventName="Integrations: Facing issues in integrations"
+					buttonText="Facing issues with integrations"
+					message={integrationsListMessage}
+					onHoverText="Click here to get help with integrations"
+				/>
+			</Flex>
 
 			<Input
 				placeholder="Search for an integration..."

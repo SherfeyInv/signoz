@@ -1,3 +1,4 @@
+/* eslint-disable no-nested-ternary */
 import { Modal } from 'antd';
 import getDashboard from 'api/dashboard/get';
 import lockDashboardApi from 'api/dashboard/lockDashboard';
@@ -9,7 +10,10 @@ import dayjs, { Dayjs } from 'dayjs';
 import { useDashboardVariablesFromLocalStorage } from 'hooks/dashboard/useDashboardFromLocalStorage';
 import useAxiosError from 'hooks/useAxiosError';
 import useTabVisibility from 'hooks/useTabFocus';
+import useUrlQuery from 'hooks/useUrlQuery';
 import { getUpdatedLayout } from 'lib/dashboard/getUpdatedLayout';
+import history from 'lib/history';
+import { defaultTo } from 'lodash-es';
 import isEqual from 'lodash-es/isEqual';
 import isUndefined from 'lodash-es/isUndefined';
 import omitBy from 'lodash-es/omitBy';
@@ -36,7 +40,8 @@ import AppReducer from 'types/reducer/app';
 import { GlobalReducer } from 'types/reducer/globalTime';
 import { v4 as generateUUID } from 'uuid';
 
-import { IDashboardContext } from './types';
+import { DashboardSortOrder, IDashboardContext } from './types';
+import { sortLayout } from './util';
 
 const DashboardContext = createContext<IDashboardContext>({
 	isDashboardSliderOpen: false,
@@ -47,6 +52,15 @@ const DashboardContext = createContext<IDashboardContext>({
 	selectedDashboard: {} as Dashboard,
 	dashboardId: '',
 	layouts: [],
+	panelMap: {},
+	setPanelMap: () => {},
+	listSortOrder: {
+		columnKey: 'createdAt',
+		order: 'descend',
+		pagination: '1',
+		search: '',
+	},
+	setListSortOrder: () => {},
 	setLayouts: () => {},
 	setSelectedDashboard: () => {},
 	updatedTimeRef: {} as React.MutableRefObject<Dayjs | null>,
@@ -61,6 +75,7 @@ interface Props {
 	dashboardId: string;
 }
 
+// eslint-disable-next-line sonarjs/cognitive-complexity
 export function DashboardProvider({
 	children,
 }: PropsWithChildren): JSX.Element {
@@ -74,6 +89,50 @@ export function DashboardProvider({
 		path: ROUTES.DASHBOARD,
 		exact: true,
 	});
+
+	const isDashboardListPage = useRouteMatch<Props>({
+		path: ROUTES.ALL_DASHBOARD,
+		exact: true,
+	});
+
+	// added extra checks here in case wrong values appear use the default values rather than empty dashboards
+	const supportedOrderColumnKeys = ['createdAt', 'updatedAt'];
+
+	const supportedOrderKeys = ['ascend', 'descend'];
+
+	const params = useUrlQuery();
+	// since the dashboard provider is wrapped at the very top of the application hence it initialises these values from other pages as well.
+	// pick the below params from URL only if the user is on the dashboards list page.
+	const orderColumnParam = isDashboardListPage && params.get('columnKey');
+	const orderQueryParam = isDashboardListPage && params.get('order');
+	const paginationParam = isDashboardListPage && params.get('page');
+	const searchParam = isDashboardListPage && params.get('search');
+
+	const [listSortOrder, setListOrder] = useState({
+		columnKey: orderColumnParam
+			? supportedOrderColumnKeys.includes(orderColumnParam)
+				? orderColumnParam
+				: 'updatedAt'
+			: 'updatedAt',
+		order: orderQueryParam
+			? supportedOrderKeys.includes(orderQueryParam)
+				? orderQueryParam
+				: 'descend'
+			: 'descend',
+		pagination: paginationParam || '1',
+		search: searchParam || '',
+	});
+
+	function setListSortOrder(sortOrder: DashboardSortOrder): void {
+		if (!isEqual(sortOrder, listSortOrder)) {
+			setListOrder(sortOrder);
+		}
+		params.set('columnKey', sortOrder.columnKey as string);
+		params.set('order', sortOrder.order as string);
+		params.set('page', sortOrder.pagination || '1');
+		params.set('search', sortOrder.search || '');
+		history.replace({ search: params.toString() });
+	}
 
 	const dispatch = useDispatch<Dispatch<AppActions>>();
 
@@ -93,6 +152,10 @@ export function DashboardProvider({
 	);
 
 	const [layouts, setLayouts] = useState<Layout[]>([]);
+
+	const [panelMap, setPanelMap] = useState<
+		Record<string, { widgets: Layout[]; collapsed: boolean }>
+	>({});
 
 	const { isLoggedIn } = useSelector<AppState, AppReducer>((state) => state.app);
 
@@ -199,7 +262,9 @@ export function DashboardProvider({
 
 					dashboardRef.current = updatedDashboardData;
 
-					setLayouts(getUpdatedLayout(updatedDashboardData.data.layout));
+					setLayouts(sortLayout(getUpdatedLayout(updatedDashboardData.data.layout)));
+
+					setPanelMap(defaultTo(updatedDashboardData?.data?.panelMap, {}));
 				}
 
 				if (
@@ -235,7 +300,11 @@ export function DashboardProvider({
 
 							updatedTimeRef.current = dayjs(updatedDashboardData.updated_at);
 
-							setLayouts(getUpdatedLayout(updatedDashboardData.data.layout));
+							setLayouts(
+								sortLayout(getUpdatedLayout(updatedDashboardData.data.layout)),
+							);
+
+							setPanelMap(defaultTo(updatedDashboardData.data.panelMap, {}));
 						},
 					});
 
@@ -256,7 +325,11 @@ export function DashboardProvider({
 							updatedDashboardData.data.layout,
 						)
 					) {
-						setLayouts(getUpdatedLayout(updatedDashboardData.data.layout));
+						setLayouts(
+							sortLayout(getUpdatedLayout(updatedDashboardData.data.layout)),
+						);
+
+						setPanelMap(defaultTo(updatedDashboardData.data.panelMap, {}));
 					}
 				}
 			},
@@ -323,7 +396,11 @@ export function DashboardProvider({
 			selectedDashboard,
 			dashboardId,
 			layouts,
+			listSortOrder,
+			setListSortOrder,
+			panelMap,
 			setLayouts,
+			setPanelMap,
 			setSelectedDashboard,
 			updatedTimeRef,
 			setToScrollWidgetId,
@@ -339,6 +416,9 @@ export function DashboardProvider({
 			selectedDashboard,
 			dashboardId,
 			layouts,
+			listSortOrder,
+			setListSortOrder,
+			panelMap,
 			toScrollWidgetId,
 			updateLocalStorageDashboardVariables,
 			currentDashboard,

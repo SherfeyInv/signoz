@@ -9,7 +9,13 @@ import { ENVIRONMENT } from 'constants/env';
 import { LOCALSTORAGE } from 'constants/localStorage';
 import store from 'store';
 
-import apiV1, { apiAlertManager, apiV2, apiV3, apiV4 } from './apiV1';
+import apiV1, {
+	apiAlertManager,
+	apiV2,
+	apiV3,
+	apiV4,
+	gatewayApiV1,
+} from './apiV1';
 import { Logout } from './utils';
 
 const interceptorsResponse = (
@@ -90,6 +96,10 @@ const interceptorRejected = async (
 	}
 };
 
+const interceptorRejectedBase = async (
+	value: AxiosResponse<any>,
+): Promise<AxiosResponse<any>> => Promise.reject(value);
+
 const instance = axios.create({
 	baseURL: `${ENVIRONMENT.baseURL}${apiV1}`,
 });
@@ -132,6 +142,31 @@ ApiV4Instance.interceptors.response.use(
 	interceptorRejected,
 );
 ApiV4Instance.interceptors.request.use(interceptorsRequestResponse);
+//
+
+// axios Base
+export const ApiBaseInstance = axios.create({
+	baseURL: `${ENVIRONMENT.baseURL}${apiV1}`,
+});
+
+ApiBaseInstance.interceptors.response.use(
+	interceptorsResponse,
+	interceptorRejectedBase,
+);
+ApiBaseInstance.interceptors.request.use(interceptorsRequestResponse);
+//
+
+// gateway Api V1
+export const GatewayApiV1Instance = axios.create({
+	baseURL: `${ENVIRONMENT.baseURL}${gatewayApiV1}`,
+});
+
+GatewayApiV1Instance.interceptors.response.use(
+	interceptorsResponse,
+	interceptorRejected,
+);
+
+GatewayApiV1Instance.interceptors.request.use(interceptorsRequestResponse);
 //
 
 AxiosAlertManagerInstance.interceptors.response.use(
